@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cambridge Assembly Emulator</title>
+    <meta name="description" content="Web-based emulator for Cambridge Assembly language with instruction tracing">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Cambridge Assembly Emulator</h1>
+            <p class="subtitle">Execute & trace Cambridge A-Level assembly programs</p>
+        </header>
+
+        <main>
+            <div class="editor-section">
+                <div class="panel code-panel">
+                    <div class="panel-header">
+                        <span class="panel-icon">📝</span>
+                        <span>Program Code</span>
+                    </div>
+                    <textarea id="code-editor" placeholder="; Enter your assembly code here
+LDM #5
+STO 80
+LDD 80
+ADD #10
+STO 81
+END"></textarea>
+                </div>
+
+                <div class="side-panels">
+                    <div class="panel input-panel">
+                        <div class="panel-header">
+                            <span class="panel-icon">⌨️</span>
+                            <span>Input Buffer</span>
+                        </div>
+                        <textarea id="input-buffer" placeholder="Characters for IN instruction"></textarea>
+                    </div>
+
+                    <div class="panel memory-panel">
+                        <div class="panel-header">
+                            <span class="panel-icon">💾</span>
+                            <span>Initial Memory</span>
+                        </div>
+                        <input type="text" id="initial-memory" placeholder="80:10, 81:8, 82:80">
+                        <small class="hint">Format: addr:value, addr:value</small>
+                    </div>
+                </div>
+            </div>
+
+            <details class="options-panel" open>
+                <summary>
+                    <span class="panel-icon">⚙️</span>
+                    <span>Options</span>
+                </summary>
+                <div class="options-grid">
+                    <div class="option-group">
+                        <label for="start-address">Start Address</label>
+                        <input type="number" id="start-address" value="200" min="0" max="65535">
+                    </div>
+                    <div class="option-group">
+                        <label for="max-steps">Max Steps</label>
+                        <input type="number" id="max-steps" value="10000" min="1" max="1000000">
+                    </div>
+                    <div class="option-group">
+                        <label for="memory-size">Memory Size</label>
+                        <input type="number" id="memory-size" value="256" min="1" max="65536">
+                    </div>
+                    <div class="option-group">
+                        <label for="trace-watch">Trace Watch</label>
+                        <input type="text" id="trace-watch" placeholder="80, 81, 82, 83">
+                        <small class="hint">Comma-separated addresses</small>
+                    </div>
+                    <div class="option-group checkboxes">
+                        <label><input type="checkbox" id="trace-enabled" checked> Enable Trace</label>
+                        <label><input type="checkbox" id="trace-ix"> Show IX</label>
+                        <label><input type="checkbox" id="trace-flag"> Show FLAG</label>
+                        <label><input type="checkbox" id="trace-io" checked> Show I/O</label>
+                    </div>
+                </div>
+            </details>
+
+            <div class="run-section">
+                <button id="run-btn" class="run-button">
+                    <span class="btn-icon">▶</span>
+                    <span>Run Program</span>
+                </button>
+                <div id="status-indicator" class="status-indicator"></div>
+            </div>
+
+            <div id="results-section" class="results-section hidden">
+                <div class="results-header">
+                    <h2>Results</h2>
+                    <span id="steps-badge" class="badge"></span>
+                </div>
+
+                <div id="error-display" class="error-display hidden"></div>
+
+                <div class="results-grid">
+                    <div class="panel output-panel">
+                        <div class="panel-header">
+                            <span class="panel-icon">📤</span>
+                            <span>Output</span>
+                        </div>
+                        <pre id="output-text" class="output-content"></pre>
+                    </div>
+
+                    <div class="panel state-panel">
+                        <div class="panel-header">
+                            <span class="panel-icon">🔢</span>
+                            <span>Final State</span>
+                        </div>
+                        <div id="final-state" class="state-grid"></div>
+                    </div>
+                </div>
+
+                <div id="trace-container" class="trace-container">
+                    <div class="panel-header">
+                        <span class="panel-icon">📊</span>
+                        <span>Execution Trace</span>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="trace-table" class="trace-table">
+                            <thead id="trace-header"></thead>
+                            <tbody id="trace-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Cambridge Assembly Emulator • Built for A-Level Computer Science</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
