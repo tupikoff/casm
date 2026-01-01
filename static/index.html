@@ -53,15 +53,27 @@ END"></textarea>
                 <div class="side-panels">
                     <div class="panel input-panel">
                         <div class="panel-header">
-                            <span class="panel-icon">⌨️</span>
-                            <span>Input Buffer</span>
+                            <div class="header-title">
+                                <span class="panel-icon">⌨️</span>
+                                <span>Input Buffer</span>
+                            </div>
                         </div>
                         <textarea id="input-buffer" placeholder="Characters for IN instruction"></textarea>
                     </div>
+
+                    <details id="output-panel" class="panel output-panel">
+                        <summary class="panel-header">
+                            <div class="header-title">
+                                <span class="panel-icon">📤</span>
+                                <span>Output</span>
+                            </div>
+                        </summary>
+                        <pre id="output-text" class="output-content"></pre>
+                    </details>
                 </div>
             </div>
 
-            <details class="options-panel" open>
+            <details class="options-panel">
                 <summary>
                     <span class="panel-icon">⚙️</span>
                     <span>Options</span>
@@ -79,11 +91,6 @@ END"></textarea>
                     <div class="option-group">
                         <label for="memory-size">Memory Size</label>
                         <input type="number" id="memory-size" value="256" min="1" max="65536">
-                    </div>
-                    <div class="option-group">
-                        <label for="trace-watch">Trace Watch</label>
-                        <input type="text" id="trace-watch" placeholder="80, 81, 82, 83">
-                        <small class="hint">Comma-separated addresses</small>
                     </div>
                     <div class="option-group checkboxes">
                         <label><input type="checkbox" id="trace-enabled" checked> Enable Trace</label>
@@ -109,24 +116,6 @@ END"></textarea>
                 </div>
 
                 <div id="error-display" class="error-display hidden"></div>
-
-                <div class="results-grid">
-                    <div class="panel output-panel">
-                        <div class="panel-header">
-                            <span class="panel-icon">📤</span>
-                            <span>Output</span>
-                        </div>
-                        <pre id="output-text" class="output-content"></pre>
-                    </div>
-
-                    <div class="panel state-panel">
-                        <div class="panel-header">
-                            <span class="panel-icon">🔢</span>
-                            <span>Final State</span>
-                        </div>
-                        <div id="final-state" class="state-grid"></div>
-                    </div>
-                </div>
 
                 <div id="trace-container" class="trace-container">
                     <div class="panel-header">
