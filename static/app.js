@@ -132,7 +132,10 @@ function renderTrace(trace, traceWatchList, options) {
     traceContainer.style.display = 'block';
 
     // Build header
-    const headers = ['Step', 'Addr', 'Command', 'ACC'];
+    const hasLabels = trace.some(row => row.label);
+    const headers = ['Step', 'Addr'];
+    if (hasLabels) headers.push('Label');
+    headers.push('Command', 'ACC');
 
     // Add watched memory addresses
     for (const addr of traceWatchList) {
@@ -154,9 +157,16 @@ function renderTrace(trace, traceWatchList, options) {
         const cells = [
             `<td class="col-step">${row.step}</td>`,
             `<td class="col-addr">${row.addr}</td>`,
+        ];
+
+        if (hasLabels) {
+            cells.push(`<td class="col-label">${escapeHtml(row.label || '')}</td>`);
+        }
+
+        cells.push(
             `<td class="col-instr">${escapeHtml(row.instr_text)}</td>`,
             `<td class="col-acc">${row.acc}</td>`,
-        ];
+        );
 
         // Memory values
         for (const addr of traceWatchList) {

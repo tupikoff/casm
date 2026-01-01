@@ -471,6 +471,11 @@ header h1 {
     color: var(--accent-success);
 }
 
+.col-label {
+    color: var(--accent-secondary);
+    font-weight: 500;
+}
+
 .state-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

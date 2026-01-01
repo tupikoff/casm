@@ -42,6 +42,7 @@ class TraceRow:
     in_code: Optional[int] = None
     out_code: Optional[int] = None
     instr_text: str = ""
+    label: Optional[str] = None
 
     def to_dict(self, include_ix: bool, include_flag: bool, include_io: bool) -> dict:
         result = {
@@ -58,6 +59,8 @@ class TraceRow:
             result["in_code"] = self.in_code
             result["out_code"] = self.out_code
         result["instr_text"] = self.instr_text
+        if self.label:
+            result["label"] = self.label
         return result
 
 
@@ -144,6 +147,9 @@ def run_program(
     
     options.trace_watch.sort()
     
+    # Pre-calculate address-to-label mapping for fast lookup
+    addr_to_label = {addr: name for name, addr in program.labels.items()}
+    
     # Set starting PC
     cpu.pc = program.start_address
     
@@ -191,6 +197,7 @@ def run_program(
                     in_code=io_buffer.last_in_code if options.trace_include_io else None,
                     out_code=io_buffer.last_out_code if options.trace_include_io else None,
                     instr_text=current_instr.clean_text if current_instr else "",
+                    label=addr_to_label.get(instr_addr),
                 )
                 trace_rows.append(row.to_dict(
                     include_ix=options.trace_include_ix,
