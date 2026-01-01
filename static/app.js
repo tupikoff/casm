@@ -154,17 +154,19 @@ function renderTrace(trace, traceWatchList, options) {
 
     // Build body
     traceBody.innerHTML = trace.map(row => {
+        const isStep0 = row.step === 0;
+        const rowClass = isStep0 ? 'class="row-step-0"' : '';
         const cells = [
             `<td class="col-step">${row.step}</td>`,
-            `<td class="col-addr">${row.addr}</td>`,
+            `<td class="col-addr">${isStep0 ? '' : row.addr}</td>`,
         ];
 
         if (hasLabels) {
-            cells.push(`<td class="col-label">${escapeHtml(row.label || '')}</td>`);
+            cells.push(`<td class="col-label">${isStep0 ? '' : escapeHtml(row.label || '')}</td>`);
         }
 
         cells.push(
-            `<td class="col-instr">${escapeHtml(row.instr_text)}</td>`,
+            `<td class="col-instr">${isStep0 ? '' : escapeHtml(row.instr_text)}</td>`,
             `<td class="col-acc">${row.acc}</td>`,
         );
 
@@ -186,7 +188,7 @@ function renderTrace(trace, traceWatchList, options) {
             cells.push(`<td class="col-io">${row.out_code !== null ? row.out_code : '-'}</td>`);
         }
 
-        return `<tr>${cells.join('')}</tr>`;
+        return `<tr ${rowClass}>${cells.join('')}</tr>`;
     }).join('');
 }
 

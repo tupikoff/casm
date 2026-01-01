@@ -476,6 +476,17 @@ header h1 {
     font-weight: 500;
 }
 
+.row-step-0 {
+    background: rgba(var(--accent-primary-rgb), 0.05);
+    border-left: 3px solid var(--accent-primary);
+}
+
+.row-step-0 .col-instr {
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.8;
+}
+
 .state-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

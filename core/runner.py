@@ -153,6 +153,26 @@ def run_program(
     # Set starting PC
     cpu.pc = program.start_address
     
+    # Record Initial State (Step 0)
+    if options.trace:
+        row = TraceRow(
+            step=0,
+            addr=cpu.pc,
+            acc=cpu.acc,
+            mem=memory.get_watched(options.trace_watch),
+            ix=cpu.ix if options.trace_include_ix else None,
+            flag=cpu.flag if options.trace_include_flag else None,
+            in_code=None,
+            out_code=None,
+            instr_text="Initial State",
+            label=addr_to_label.get(cpu.pc),
+        )
+        trace_rows.append(row.to_dict(
+            include_ix=options.trace_include_ix,
+            include_flag=options.trace_include_flag,
+            include_io=options.trace_include_io,
+        ))
+
     current_instr: Optional[Instruction] = None
     
     try:
