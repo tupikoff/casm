@@ -253,19 +253,46 @@ async function runProgram() {
 }
 
 const SAMPLES = {
-    countdown: {
-        code: `; Sample program: Count down from 5\nLDM #5\nSTO 80\nLOOP: LDD 80\nCMP #0\nJPE DONE\nDEC ACC\nSTO 80\nJMP LOOP\nDONE: END`,
-        watch: '80',
+    echo: {
+        code: `; Echo one character\n\n200 IN\n201 OUT\n202 END`,
+        watch: '',
+        start: 200,
+        input: 'A'
+    },
+    next_ascii: {
+        code: `; Read char and output next ASCII\n\n200 IN\n201 ADD #1\n202 OUT\n203 END`,
+        watch: '',
+        start: 200,
+        input: 'A'
+    },
+    inc_mem: {
+        code: `; Increment MEM[81] by 1\n81 8\n\n200 LDD 81\n201 INC ACC\n202 STO 81\n203 END`,
+        watch: '81',
         start: 200
     },
-    integrated_mem: {
-        code: `80 10\n81 8\n200 LDD 80\nADD 81\nSTO 82\nEND`,
+    if_else: {
+        code: `; If X equals 10 then RESULT=0 else RESULT=1\n81 X: 10\n82 RESULT: 0\n\n200 START: LDD X\n201 CMP #10\n202 JPE THEN\n203 LDM #1\n204 STO RESULT\n205 JMP DONE\n206 THEN: LDM #0\n207 STO RESULT\n208 DONE: END`,
+        watch: '81, 82',
+        start: 200
+    },
+    n_stars_nolabel: {
+        code: `; Output '*' N times (no labels)\n81 5\n\n200 LDD 81\n201 CMP #0\n202 JPE 210\n203 LDM #42\n204 OUT\n205 LDD 81\n206 DEC ACC\n207 STO 81\n208 JMP 200\n210 END`,
+        watch: '81',
+        start: 200
+    },
+    n_stars_labels: {
+        code: `; Output '*' N times (labels for memory and jumps)\n81 N: 5\n\n200 LOOP: LDD N\n201 CMP #0\n202 JPE STOP\n203 LDM #42\n204 OUT\n205 LDD N\n206 DEC ACC\n207 STO N\n208 JMP LOOP\n209 STOP: END`,
+        watch: '81',
+        start: 200
+    },
+    string_output: {
+        code: `; Output zero-terminated string using IX and LDX\n80 STR: 72\n81 69\n82 76\n83 76\n84 79\n85 32\n86 87\n87 79\n88 82\n89 76\n90 68\n91 0\n\n200 INIT: LDR #0\n201 LOOP: LDX STR\n202 CMP #0\n203 JPE DONE\n204 OUT\n205 INC IX\n206 JMP LOOP\n207 DONE: END`,
+        watch: '80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91',
+        start: 200
+    },
+    sum_compare: {
+        code: `; Sum A and B, compare with TARGET, output 'Y' or 'N'\n80 A: 7\n81 B: 3\n82 TARGET: 10\n\n200 START: LDD A\n201 ADD B\n202 CMP TARGET\n203 JPE YES\n204 LDM #78\n205 OUT\n206 JMP DONE\n207 YES: LDM #89\n208 OUT\n209 DONE: END`,
         watch: '80, 81, 82',
-        start: 200
-    },
-    user_sample: {
-        code: `80 10\n8\n80\n81\n200 LDD 81\nINC ACC\nSTO 83\nLDI 82\nCMP 83\nJPE 209\nLDD 83\nADD #10\nJMP 210\nDEC ACC\nSTO 81\nEND`,
-        watch: '80, 81, 82, 83',
         start: 200
     }
 };
@@ -278,12 +305,26 @@ samplesSelect.addEventListener('change', () => {
     if (sample) {
         codeEditor.value = sample.code;
         traceWatch.value = sample.watch || '';
-        startAddress.value = sample.start || 200;
+        inputBuffer.value = sample.input || '';
+
+        // Adjust start address if sample specify it
+        const startAddrInput = document.querySelector('input[placeholder="200"]');
+        if (startAddrInput) {
+            startAddrInput.value = sample.start || 200;
+        }
+
+        // Clear previous results when loading new sample
+        resultsSection.classList.add('hidden');
+        errorDisplay.classList.add('hidden');
+        traceContainer.style.display = 'none';
 
         // Trigger input event to update any listeners
         codeEditor.dispatchEvent(new Event('input', { bubbles: true }));
         traceWatch.dispatchEvent(new Event('input', { bubbles: true }));
-        startAddress.dispatchEvent(new Event('input', { bubbles: true }));
+        inputBuffer.dispatchEvent(new Event('input', { bubbles: true }));
+        if (startAddrInput) {
+            startAddrInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
     }
 });
 
@@ -295,17 +336,8 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Initialize with sample program
+// Initialize with default sample if empty
 if (!codeEditor.value.trim()) {
-    codeEditor.value = `; Sample program: Count down from 5
-LDM #5
-STO 80
-LOOP: LDD 80
-CMP #0
-JPE DONE
-DEC ACC
-STO 80
-JMP LOOP
-DONE: END`;
-    traceWatch.value = '80';
+    samplesSelect.value = 'echo';
+    samplesSelect.dispatchEvent(new Event('change'));
 }

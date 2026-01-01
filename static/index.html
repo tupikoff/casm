@@ -31,9 +31,14 @@
                         </div>
                         <select id="samples-select" class="samples-select">
                             <option value="" disabled selected>Load Sample...</option>
-                            <option value="countdown">Countdown from 5</option>
-                            <option value="integrated_mem">Integrated Memory (Example)</option>
-                            <option value="user_sample">Custom Sample</option>
+                            <option value="echo">Echo Character</option>
+                            <option value="next_ascii">Next ASCII Character</option>
+                            <option value="inc_mem">Increment MEM[81]</option>
+                            <option value="if_else">If/Else Condition</option>
+                            <option value="n_stars_nolabel">N Stars (No Labels)</option>
+                            <option value="n_stars_labels">N Stars (Labels)</option>
+                            <option value="string_output">String Output (IX)</option>
+                            <option value="sum_compare">Sum & Compare</option>
                         </select>
                     </div>
                     <textarea id="code-editor" placeholder="; Enter your assembly code here
@@ -82,8 +87,8 @@ END"></textarea>
                     </div>
                     <div class="option-group checkboxes">
                         <label><input type="checkbox" id="trace-enabled" checked> Enable Trace</label>
-                        <label><input type="checkbox" id="trace-ix"> Show IX</label>
-                        <label><input type="checkbox" id="trace-flag"> Show FLAG</label>
+                        <label><input type="checkbox" id="trace-ix" checked> Show IX</label>
+                        <label><input type="checkbox" id="trace-flag" checked> Show FLAG</label>
                         <label><input type="checkbox" id="trace-io" checked> Show I/O</label>
                     </div>
                 </div>
