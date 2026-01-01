@@ -145,6 +145,12 @@ def run_program(
         if addr not in options.trace_watch:
             options.trace_watch.append(addr)
     
+    # Merge initial memory from options (takes precedence over program code)
+    for addr, val in options.initial_memory.items():
+        memory.write(addr, val)
+        if addr not in options.trace_watch:
+            options.trace_watch.append(addr)
+    
     # Auto-watch addresses referenced in instructions (direct addressing)
     for addr, instr in program.instructions.items():
         if instr.operand_type == "direct" and instr.operand_value is not None:

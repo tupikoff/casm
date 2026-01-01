@@ -195,9 +195,9 @@ class TestIO:
         result = run_program("IN\nOUT\nEND", input_text="X", options=opts)
         assert result.status == "ok"
         # IN instruction
-        assert result.trace[0]["in_code"] == 88
+        assert result.trace[1]["in_code"] == 88
         # OUT instruction
-        assert result.trace[1]["out_code"] == 88
+        assert result.trace[2]["out_code"] == 88
 
 
 class TestRunner:
@@ -216,20 +216,20 @@ class TestRunner:
         opts = RunOptions(trace=True, trace_watch=[80])
         result = run_program("LDM #5\nSTO 80\nEND", options=opts)
         assert result.status == "ok"
-        assert len(result.trace) == 3
+        assert len(result.trace) == 4
         # After LDM
-        assert result.trace[0]["acc"] == 5
-        assert result.trace[0]["mem"]["80"] == 0
-        # After STO
         assert result.trace[1]["acc"] == 5
-        assert result.trace[1]["mem"]["80"] == 5
+        assert result.trace[1]["mem"]["80"] == 0
+        # After STO
+        assert result.trace[2]["acc"] == 5
+        assert result.trace[2]["mem"]["80"] == 5
 
     def test_trace_includes_address(self):
         """Trace includes instruction address."""
         result = run_program("LDM #1\nLDM #2\nEND")
-        assert result.trace[0]["addr"] == 200
-        assert result.trace[1]["addr"] == 201
-        assert result.trace[2]["addr"] == 202
+        assert result.trace[1]["addr"] == 200
+        assert result.trace[2]["addr"] == 201
+        assert result.trace[3]["addr"] == 202
 
     def test_overflow_normalization(self):
         """Overflow is normalized."""
