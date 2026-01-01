@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,12 @@
     <meta name="description" content="Web-based emulator for Cambridge Assembly language with instruction tracing">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -21,8 +25,16 @@
             <div class="editor-section">
                 <div class="panel code-panel">
                     <div class="panel-header">
-                        <span class="panel-icon">📝</span>
-                        <span>Program Code</span>
+                        <div class="header-title">
+                            <span class="panel-icon">📝</span>
+                            <span>Program Code</span>
+                        </div>
+                        <select id="samples-select" class="samples-select">
+                            <option value="" disabled selected>Load Sample...</option>
+                            <option value="countdown">Countdown from 5</option>
+                            <option value="integrated_mem">Integrated Memory (Example)</option>
+                            <option value="user_sample">Custom Sample</option>
+                        </select>
                     </div>
                     <textarea id="code-editor" placeholder="; Enter your assembly code here
 LDM #5
@@ -41,15 +53,6 @@ END"></textarea>
                         </div>
                         <textarea id="input-buffer" placeholder="Characters for IN instruction"></textarea>
                     </div>
-
-                    <div class="panel memory-panel">
-                        <div class="panel-header">
-                            <span class="panel-icon">💾</span>
-                            <span>Initial Memory</span>
-                        </div>
-                        <input type="text" id="initial-memory" placeholder="80:10, 81:8, 82:80">
-                        <small class="hint">Format: addr:value, addr:value</small>
-                    </div>
                 </div>
             </div>
 
@@ -62,6 +65,7 @@ END"></textarea>
                     <div class="option-group">
                         <label for="start-address">Start Address</label>
                         <input type="number" id="start-address" value="200" min="0" max="65535">
+                        <small class="hint">Initial PC and sequential code base</small>
                     </div>
                     <div class="option-group">
                         <label for="max-steps">Max Steps</label>
@@ -141,4 +145,5 @@ END"></textarea>
 
     <script src="app.js"></script>
 </body>
+
 </html>

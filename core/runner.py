@@ -41,6 +41,7 @@ class TraceRow:
     flag: Optional[bool] = None
     in_code: Optional[int] = None
     out_code: Optional[int] = None
+    instr_text: str = ""
 
     def to_dict(self, include_ix: bool, include_flag: bool, include_io: bool) -> dict:
         result = {
@@ -56,6 +57,7 @@ class TraceRow:
         if include_io:
             result["in_code"] = self.in_code
             result["out_code"] = self.out_code
+        result["instr_text"] = self.instr_text
         return result
 
 
@@ -133,6 +135,14 @@ def run_program(
             trace=[],
             error=e.to_error_info(),
         )
+
+    # Merge initial memory from program code
+    for addr, val in program.initial_memory.items():
+        memory.write(addr, val)
+        if addr not in options.trace_watch:
+            options.trace_watch.append(addr)
+    
+    options.trace_watch.sort()
     
     # Set starting PC
     cpu.pc = program.start_address
@@ -180,6 +190,7 @@ def run_program(
                     flag=cpu.flag if options.trace_include_flag else None,
                     in_code=io_buffer.last_in_code if options.trace_include_io else None,
                     out_code=io_buffer.last_out_code if options.trace_include_io else None,
+                    instr_text=current_instr.source_text if current_instr else "",
                 )
                 trace_rows.append(row.to_dict(
                     include_ix=options.trace_include_ix,

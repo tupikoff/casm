@@ -86,10 +86,20 @@ class TestParser:
         jmp_instr = result.instructions[201]
         assert jmp_instr.operand_value == 200
 
-    def test_mixed_address_mode_error(self):
-        """Mixing explicit and sequential addresses is error."""
-        with pytest.raises(AddressConflict):
-            parse_program("200 LDM #5\nLDM #10")
+    def test_mixed_address_mode_allowed(self):
+        """Mixing explicit and sequential addresses is now allowed."""
+        program = parse_program("200 LDM #5\nLDM #10", start_address=200)
+        assert 200 in program.instructions
+        assert 201 in program.instructions
+        assert program.instructions[200].opcode == "LDM"
+        assert program.instructions[201].opcode == "LDM"
+
+    def test_address_label_prefix(self):
+        """Test line with both address and label prefixes."""
+        program = parse_program("200 START: LDD 80")
+        assert 200 in program.instructions
+        assert program.instructions[200].opcode == "LDD"
+        assert program.labels["START"] == 200
 
     def test_duplicate_address_error(self):
         """Duplicate addresses raise error."""

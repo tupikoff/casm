@@ -47,6 +47,7 @@ class ParsedProgram:
     """Result of parsing a program."""
     instructions: dict[int, Instruction]  # addr -> instruction
     labels: dict[str, int]  # label -> addr
+    initial_memory: dict[int, int]  # addr -> value (data)
     start_address: int
     end_address: int
 
@@ -67,6 +68,7 @@ def parse_program(
         ParsedProgram with instructions and labels
     """
     instructions: dict[int, Instruction] = {}
+    initial_memory: dict[int, int] = {}
     resolved_labels: dict[str, int] = labels.copy() if labels else {}
     
     lines = text.split("\n")
@@ -80,15 +82,19 @@ def parse_program(
         if not stripped:
             continue
         
-        # Check for explicit address at start
-        match = re.match(r"^(\d+)\s+(.+)$", stripped)
-        if match:
+        # 1. Extract optional Address prefix
+        # Supports "200 LDD 81" or "200: LDD 81" or "80 10"
+        addr_match = re.match(r"^(\d+)(?:\s*:\s*|\s+)(.*)$", stripped)
+        if addr_match:
             has_explicit_addresses = True
+            rest = addr_match.group(2).strip()
         else:
             has_sequential_addresses = True
+            rest = stripped
         
-        # Check for label definition
-        label_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", stripped)
+        # 2. Extract optional Label prefix from the remaining text
+        # Supports "START: LDD 81" or "START: 10"
+        label_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", rest)
         if label_match:
             label_name = label_match.group(1).upper()
             if label_name in resolved_labels:
@@ -97,13 +103,9 @@ def parse_program(
                     source_line_no=line_no,
                     source_text=line.strip(),
                 )
-            # Will resolve address in second pass
+            # Address resolution happens in Pass 2
     
-    if has_explicit_addresses and has_sequential_addresses:
-        raise AddressConflict(
-            "Cannot mix explicit and sequential addressing modes",
-            source_line_no=1,
-        )
+    # Mixed mode is allowed: sequential addresses follow the last explicit one.
     
     # Second pass: parse instructions
     current_addr = start_address
@@ -114,26 +116,40 @@ def parse_program(
             continue
         
         original_text = line.strip()
-        instruction_text = stripped
-        addr = current_addr
+        # 1. Extract optional Address prefix
+        addr_match = re.match(r"^(\d+)(?:\s*:\s*|\s+)(.*)$", stripped)
+        if addr_match:
+            addr = int(addr_match.group(1))
+            instruction_text = addr_match.group(2).strip()
+        else:
+            addr = current_addr
+            instruction_text = stripped
         
-        # Handle explicit address
-        match = re.match(r"^(\d+)\s+(.+)$", stripped)
-        if match:
-            addr = int(match.group(1))
-            instruction_text = match.group(2).strip()
-        
-        # Handle label definition
+        # 2. Extract optional Label prefix from the remaining text
         label_match = re.match(r"^([A-Za-z_][A-Za-z0-9_]*):\s*(.*)$", instruction_text)
         if label_match:
             label_name = label_match.group(1).upper()
             resolved_labels[label_name] = addr
             instruction_text = label_match.group(2).strip()
-            if not instruction_text:
-                # Label only line
-                if not has_explicit_addresses:
-                    current_addr += 1
+            
+        # 3. Check if the remaining text is just a number (data initialization)
+        if not instruction_text:
+            # Address/Label only line
+            if not has_explicit_addresses:
+                current_addr += 1
+            else:
+                current_addr = addr + 1
+            continue
+
+        try:
+            # If it's just a number (allowing negative numbers)
+            if re.match(r"^-?\d+$", instruction_text):
+                initial_memory[addr] = int(instruction_text)
+                # Update current_addr so next sequential lines follow this address
+                current_addr = addr + 1
                 continue
+        except ValueError:
+            pass
         
         # Parse instruction
         instruction = _parse_instruction(
@@ -171,11 +187,20 @@ def parse_program(
                 )
     
     addresses = sorted(instructions.keys())
+    if not addresses:
+        # If only memory init, use 0 or something safe as start
+        start_addr = 0
+        end_addr = 0
+    else:
+        start_addr = addresses[0]
+        end_addr = addresses[-1]
+
     return ParsedProgram(
         instructions=instructions,
         labels=resolved_labels,
-        start_address=addresses[0],
-        end_address=addresses[-1],
+        initial_memory=initial_memory,
+        start_address=start_addr,
+        end_address=end_addr,
     )
 
 

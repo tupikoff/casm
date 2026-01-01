@@ -5,7 +5,6 @@
 // DOM Elements
 const codeEditor = document.getElementById('code-editor');
 const inputBuffer = document.getElementById('input-buffer');
-const initialMemory = document.getElementById('initial-memory');
 const startAddress = document.getElementById('start-address');
 const maxSteps = document.getElementById('max-steps');
 const memorySize = document.getElementById('memory-size');
@@ -15,6 +14,7 @@ const traceIx = document.getElementById('trace-ix');
 const traceFlag = document.getElementById('trace-flag');
 const traceIo = document.getElementById('trace-io');
 const runBtn = document.getElementById('run-btn');
+const samplesSelect = document.getElementById('samples-select');
 const statusIndicator = document.getElementById('status-indicator');
 const resultsSection = document.getElementById('results-section');
 const stepsBadge = document.getElementById('steps-badge');
@@ -32,7 +32,7 @@ const traceContainer = document.getElementById('trace-container');
 function parseInitialMemory(str) {
     const result = {};
     if (!str.trim()) return result;
-    
+
     const pairs = str.split(',');
     for (const pair of pairs) {
         const [addr, val] = pair.split(':').map(s => s.trim());
@@ -70,7 +70,6 @@ function buildRequest() {
             trace_include_ix: traceIx.checked,
             trace_include_flag: traceFlag.checked,
             trace_include_io: traceIo.checked,
-            initial_memory: parseInitialMemory(initialMemory.value),
         }
     };
 }
@@ -85,7 +84,7 @@ function renderFinalState(state) {
         { label: 'PC', value: state.pc },
         { label: 'FLAG', value: state.flag === null ? 'null' : state.flag.toString() },
     ];
-    
+
     finalState.innerHTML = items.map(item => `
         <div class="state-item">
             <span class="label">${item.label}</span>
@@ -102,7 +101,7 @@ function renderError(error) {
         errorDisplay.classList.add('hidden');
         return;
     }
-    
+
     errorDisplay.classList.remove('hidden');
     errorDisplay.innerHTML = `
         <div class="error-type">${error.type}</div>
@@ -129,17 +128,17 @@ function renderTrace(trace, traceWatchList, options) {
         traceContainer.style.display = 'none';
         return;
     }
-    
+
     traceContainer.style.display = 'block';
-    
+
     // Build header
-    const headers = ['Step', 'Addr', 'ACC'];
-    
+    const headers = ['Step', 'Addr', 'Command', 'ACC'];
+
     // Add watched memory addresses
     for (const addr of traceWatchList) {
         headers.push(addr.toString());
     }
-    
+
     // Add optional columns
     if (options.trace_include_ix) headers.push('IX');
     if (options.trace_include_flag) headers.push('FLAG');
@@ -147,23 +146,24 @@ function renderTrace(trace, traceWatchList, options) {
         headers.push('IN');
         headers.push('OUT');
     }
-    
+
     traceHeader.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-    
+
     // Build body
     traceBody.innerHTML = trace.map(row => {
         const cells = [
             `<td class="col-step">${row.step}</td>`,
             `<td class="col-addr">${row.addr}</td>`,
+            `<td class="col-instr">${escapeHtml(row.instr_text)}</td>`,
             `<td class="col-acc">${row.acc}</td>`,
         ];
-        
+
         // Memory values
         for (const addr of traceWatchList) {
             const val = row.mem[addr.toString()];
             cells.push(`<td class="col-mem">${val !== undefined ? val : '-'}</td>`);
         }
-        
+
         // Optional columns
         if (options.trace_include_ix) {
             cells.push(`<td class="col-ix">${row.ix !== undefined ? row.ix : '-'}</td>`);
@@ -175,7 +175,7 @@ function renderTrace(trace, traceWatchList, options) {
             cells.push(`<td class="col-io">${row.in_code !== null ? row.in_code : '-'}</td>`);
             cells.push(`<td class="col-io">${row.out_code !== null ? row.out_code : '-'}</td>`);
         }
-        
+
         return `<tr>${cells.join('')}</tr>`;
     }).join('');
 }
@@ -187,48 +187,48 @@ async function runProgram() {
     runBtn.disabled = true;
     statusIndicator.textContent = 'Running...';
     statusIndicator.className = 'status-indicator loading';
-    
+
     const request = buildRequest();
-    
+
     try {
         const response = await fetch('/api/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request),
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const result = await response.json();
-        
+
         // Show results
         resultsSection.classList.remove('hidden');
-        
+
         // Badge
         stepsBadge.textContent = `${result.steps_executed} steps`;
         stepsBadge.className = 'badge ' + (result.status === 'ok' ? 'success' : 'error');
-        
+
         // Error
         renderError(result.error);
-        
+
         // Output
         outputText.textContent = result.output_text || '(no output)';
-        
+
         // Final state
         renderFinalState(result.final_state);
-        
+
         // Trace
         renderTrace(result.trace, result.trace_watch, request.options);
-        
+
         statusIndicator.textContent = result.status === 'ok' ? 'Complete' : 'Error';
         statusIndicator.className = 'status-indicator ' + (result.status === 'ok' ? '' : 'error');
-        
+
     } catch (err) {
         statusIndicator.textContent = err.message;
         statusIndicator.className = 'status-indicator error';
-        
+
         errorDisplay.classList.remove('hidden');
         errorDisplay.innerHTML = `
             <div class="error-type">NetworkError</div>
@@ -240,8 +240,40 @@ async function runProgram() {
     }
 }
 
+const SAMPLES = {
+    countdown: {
+        code: `; Sample program: Count down from 5\nLDM #5\nSTO 80\nLOOP: LDD 80\nCMP #0\nJPE DONE\nDEC ACC\nSTO 80\nJMP LOOP\nDONE: END`,
+        watch: '80',
+        start: 200
+    },
+    integrated_mem: {
+        code: `80 10\n81 8\n200 LDD 80\nADD 81\nSTO 82\nEND`,
+        watch: '80, 81, 82',
+        start: 200
+    },
+    user_sample: {
+        code: `80 10\n8\n80\n81\n200 LDD 81\nINC ACC\nSTO 83\nLDI 82\nCMP 83\nJPE 209\nLDD 83\nADD #10\nJMP 210\nDEC ACC\nSTO 81\nEND`,
+        watch: '80, 81, 82, 83',
+        start: 200
+    }
+};
+
 // Event listeners
 runBtn.addEventListener('click', runProgram);
+
+samplesSelect.addEventListener('change', () => {
+    const sample = SAMPLES[samplesSelect.value];
+    if (sample) {
+        codeEditor.value = sample.code;
+        traceWatch.value = sample.watch || '';
+        startAddress.value = sample.start || 200;
+
+        // Trigger input event to update any listeners
+        codeEditor.dispatchEvent(new Event('input', { bubbles: true }));
+        traceWatch.dispatchEvent(new Event('input', { bubbles: true }));
+        startAddress.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+});
 
 // Keyboard shortcut: Ctrl+Enter or Cmd+Enter to run
 document.addEventListener('keydown', (e) => {
