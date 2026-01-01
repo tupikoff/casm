@@ -190,7 +190,7 @@ def run_program(
                     flag=cpu.flag if options.trace_include_flag else None,
                     in_code=io_buffer.last_in_code if options.trace_include_io else None,
                     out_code=io_buffer.last_out_code if options.trace_include_io else None,
-                    instr_text=current_instr.source_text if current_instr else "",
+                    instr_text=current_instr.clean_text if current_instr else "",
                 )
                 trace_rows.append(row.to_dict(
                     include_ix=options.trace_include_ix,

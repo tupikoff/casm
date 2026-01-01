@@ -40,6 +40,7 @@ class Instruction:
     operand_type: str  # "immediate", "direct", "register", "none"
     source_line_no: int
     source_text: str
+    clean_text: str
 
 
 @dataclass
@@ -153,7 +154,7 @@ def parse_program(
         
         # Parse instruction
         instruction = _parse_instruction(
-            instruction_text, addr, line_no, original_text, resolved_labels
+            instruction_text, addr, line_no, original_text, instruction_text, resolved_labels
         )
         
         if addr in instructions:
@@ -217,6 +218,7 @@ def _parse_instruction(
     addr: int,
     line_no: int,
     original_text: str,
+    clean_text: str,
     labels: dict[str, int],
 ) -> Instruction:
     """Parse a single instruction."""
@@ -328,4 +330,5 @@ def _parse_instruction(
         operand_type=operand_type,
         source_line_no=line_no,
         source_text=original_text,
+        clean_text=clean_text,
     )
