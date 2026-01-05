@@ -23,6 +23,7 @@ const finalState = document.getElementById('final-state');
 const traceHeader = document.getElementById('trace-header');
 const traceBody = document.getElementById('trace-body');
 const traceContainer = document.getElementById('trace-container');
+const DEFAULT_WORD_BITS = 8;
 
 /**
  * Parse initial memory string into dict
@@ -154,29 +155,66 @@ function renderTrace(trace, traceWatchList, options) {
 
         cells.push(
             `<td class="col-instr">${isStep0 ? '' : row.instr_text}</td>`,
-            `<td class="col-acc">${row.acc}</td>`,
+            buildValueCell(row.acc, 'col-acc'),
         );
 
         // Memory values
         for (const addr of traceWatchList) {
             const val = row.mem[addr.toString()];
-            cells.push(`<td class="col-mem">${val !== undefined ? val : '-'}</td>`);
+            cells.push(buildValueCell(val !== undefined ? val : '-', 'col-mem'));
         }
 
         // Optional columns
         if (options.trace_include_ix) {
-            cells.push(`<td class="col-ix">${row.ix !== undefined ? row.ix : '-'}</td>`);
+            cells.push(buildValueCell(row.ix !== undefined ? row.ix : '-', 'col-ix'));
         }
         if (options.trace_include_flag) {
             cells.push(`<td class="col-flag">${row.flag !== null && row.flag !== undefined ? row.flag : '-'}</td>`);
         }
         if (options.trace_include_io) {
-            cells.push(`<td class="col-io">${row.in_code !== null ? row.in_code : '-'}</td>`);
-            cells.push(`<td class="col-io">${row.out_code !== null ? row.out_code : '-'}</td>`);
+            cells.push(buildValueCell(row.in_code !== null ? row.in_code : '-', 'col-io'));
+            cells.push(buildValueCell(row.out_code !== null ? row.out_code : '-', 'col-io'));
         }
 
         return `<tr ${rowClass}>${cells.join(' ')}</tr>`;
     }).join('');
+}
+
+function buildValueCell(value, className) {
+    const display = value === undefined ? '-' : value;
+    const binaryTooltip = getBinaryTooltip(value);
+    const tooltipAttr = binaryTooltip ? ` data-bintooltip="${escapeHtml(binaryTooltip)}"` : '';
+    return `<td class="${className}"${tooltipAttr}>${display}</td>`;
+}
+
+function getBinaryTooltip(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        if (value.startsWith('B')) {
+            return value;
+        }
+        const numeric = Number(value);
+        if (!Number.isNaN(numeric)) {
+            return formatBinaryValue(numeric);
+        }
+        return null;
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return null;
+    }
+    return formatBinaryValue(value);
+}
+
+function formatBinaryValue(value, bits = DEFAULT_WORD_BITS) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const width = Math.max(bits, 1);
+    const mask = (1n << BigInt(width)) - 1n;
+    let unsigned = BigInt(Math.trunc(value));
+    unsigned &= mask;
+    const binary = unsigned.toString(2).padStart(width, '0');
+    return `B${binary}`;
 }
 
 /**

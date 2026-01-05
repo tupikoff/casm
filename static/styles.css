@@ -555,6 +555,31 @@ header h1 {
     border-bottom: 1px solid var(--border-color);
 }
 
+.trace-table td[data-bintooltip] {
+    position: relative;
+    cursor: zoom-in;
+}
+
+.trace-table td[data-bintooltip]::after {
+    content: attr(data-bintooltip);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0s;
+}
+
+.trace-table td[data-bintooltip]:hover::after {
+    opacity: 1;
+}
+
 .trace-table tbody tr:hover {
     background: var(--bg-hover);
 }
