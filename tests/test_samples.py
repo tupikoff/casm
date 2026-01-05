@@ -78,3 +78,37 @@ def test_sample_sum_compare():
     result_alt = run_program(code, options=RunOptions(start_address=200, initial_memory={80: 5}))
     assert result_alt.status == "ok"
     assert result_alt.output_text == "N"
+
+
+def test_sample_bit_mask_check():
+    """Verify 'Bit mask check' sample."""
+    code = "; Bit mask check: output 'Y' if (VALUE AND MASK) equals MASK, else output 'N'\n; Memory (address LABEL: value)\n80 VALUE: B00101101\n81 MASK:  #B00000101\n\n; Program (address [label:] instruction)\n200 START: LDD VALUE\n201 AND MASK\n202 CMP MASK\n203 JPE YES\n204 LDM #78\n205 OUT\n206 JMP DONE\n207 YES: LDM #89\n208 OUT\n209 DONE: END"
+    result = run_program(code, options=RunOptions(start_address=200))
+    assert result.status == "ok"
+    assert result.output_text == "Y"
+
+    result_alt = run_program(
+        code,
+        options=RunOptions(start_address=200, initial_memory={80: int("00101000", 2)}),
+    )
+    assert result_alt.status == "ok"
+    assert result_alt.output_text == "N"
+
+
+def test_sample_shift_toggle():
+    """Verify 'Shift and toggle' sample."""
+    code = "; Shift and toggle: ACC = (VALUE LSL 1) XOR TOGGLE, store in RESULT, output result byte\n; Memory (address LABEL: value)\n80 VALUE:  #B00001111\n81 TOGGLE: #B00110011\n82 RESULT: 0\n\n; Program (address [label:] instruction)\n200 START: LDD VALUE\n201 LSL #1\n202 XOR TOGGLE\n203 STO RESULT\n204 OUT\n205 END"
+    opts = RunOptions(start_address=200, trace_watch=[82])
+    result = run_program(code, options=opts)
+    assert result.status == "ok"
+    assert result.output_text == "-"
+    assert result.trace[-1]["mem"]["82"] == 45
+
+
+def test_sample_extract_high_nibble():
+    """Verify 'Extract high nibble' sample."""
+    code = "; Extract high nibble: ACC = (VALUE AND #B11110000) LSR 4, store in HIGH\n; Memory (address LABEL: value)\n80 VALUE: B10101100\n81 HIGH:  0\n\n; Program (address [label:] instruction)\n200 START: LDD VALUE\n201 AND #B11110000\n202 LSR #4\n203 STO HIGH\n204 END"
+    opts = RunOptions(start_address=200, trace_watch=[81])
+    result = run_program(code, options=opts)
+    assert result.status == "ok"
+    assert result.trace[-1]["mem"]["81"] == 10

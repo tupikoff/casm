@@ -434,6 +434,11 @@ def _parse_numeric_literal(
     if not literal:
         raise ValueError("Empty literal")
 
+    if literal.startswith("#"):
+        literal = literal[1:].strip()
+        if not literal:
+            raise ValueError("Empty literal")
+
     sign = 1
     if literal[0] in "+-":
         if literal[0] == "-":

@@ -145,6 +145,11 @@ class TestParser:
         instr = program.instructions[first_addr]
         assert instr.operand_value == 4
 
+    def test_memory_data_accepts_immediate_prefix(self):
+        """Memory data lines accept optional '#' prefix."""
+        program = parse_program("80 MASK: #B101\n200 END")
+        assert program.initial_memory[80] == 0b101
+
     @pytest.mark.parametrize("literal", ["B", "B2", "#B", "#BB01"])
     def test_invalid_binary_literals(self, literal):
         """Invalid binary literal forms raise error."""
