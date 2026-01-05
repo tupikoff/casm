@@ -4,7 +4,7 @@ from typing import Callable, Optional
 from .cpu import CPU
 from .memory import Memory
 from .parser import Instruction
-from .errors import JumpWithoutCompare, InputUnderflow
+from .errors import JumpWithoutCompare, InputUnderflow, InvalidShiftAmount
 
 
 class IOBuffer:
@@ -40,6 +40,30 @@ class IOBuffer:
         """Reset last I/O codes for new instruction."""
         self.last_in_code = None
         self.last_out_code = None
+
+
+def _word_mask(cpu: CPU) -> int:
+    """Return mask for current word width."""
+    return (1 << cpu.word_bits) - 1
+
+
+def _get_bitwise_operand(instr: Instruction, cpu: CPU, mem: Memory) -> int:
+    """Fetch operand for bitwise ops, returning unsigned value."""
+    if instr.operand_type == "immediate":
+        value = instr.operand_value
+    else:
+        value = mem.read(instr.operand_value)
+    return value & _word_mask(cpu)
+
+
+def _get_shift_amount(instr: Instruction) -> int:
+    """Validate and return shift amount."""
+    if instr.operand_type != "immediate" or instr.operand_value is None:
+        raise InvalidShiftAmount("Shift amount must be immediate")
+    amount = instr.operand_value
+    if amount < 0:
+        raise InvalidShiftAmount("Shift amount cannot be negative")
+    return amount
 
 
 # Instruction executor type
@@ -129,6 +153,33 @@ def execute_sub(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Opti
     return None
 
 
+def execute_and(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
+    """AND operand: ACC := ACC AND operand (bitwise)."""
+    mask = _word_mask(cpu)
+    acc_val = cpu.acc & mask
+    operand = _get_bitwise_operand(instr, cpu, mem)
+    cpu.set_acc(acc_val & operand)
+    return None
+
+
+def execute_or(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
+    """OR operand: ACC := ACC OR operand."""
+    mask = _word_mask(cpu)
+    acc_val = cpu.acc & mask
+    operand = _get_bitwise_operand(instr, cpu, mem)
+    cpu.set_acc(acc_val | operand)
+    return None
+
+
+def execute_xor(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
+    """XOR operand: ACC := ACC XOR operand."""
+    mask = _word_mask(cpu)
+    acc_val = cpu.acc & mask
+    operand = _get_bitwise_operand(instr, cpu, mem)
+    cpu.set_acc(acc_val ^ operand)
+    return None
+
+
 def execute_inc(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
     """INC ACC or INC IX: increment register"""
     if instr.operand == "IX":
@@ -144,6 +195,30 @@ def execute_dec(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Opti
         cpu.set_ix(cpu.ix - 1)
     else:  # ACC or no operand (default ACC)
         cpu.set_acc(cpu.acc - 1)
+    return None
+
+
+def execute_lsl(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
+    """LSL #n: logical shift left."""
+    amount = _get_shift_amount(instr)
+    mask = _word_mask(cpu)
+    if amount >= cpu.word_bits:
+        cpu.set_acc(0)
+        return None
+    acc_val = cpu.acc & mask
+    cpu.set_acc((acc_val << amount) & mask)
+    return None
+
+
+def execute_lsr(instr: Instruction, cpu: CPU, mem: Memory, io: IOBuffer) -> Optional[int]:
+    """LSR #n: logical shift right."""
+    amount = _get_shift_amount(instr)
+    mask = _word_mask(cpu)
+    if amount >= cpu.word_bits:
+        cpu.set_acc(0)
+        return None
+    acc_val = cpu.acc & mask
+    cpu.set_acc(acc_val >> amount)
     return None
 
 
@@ -200,8 +275,13 @@ INSTRUCTION_EXECUTORS: dict[str, InstructionExecutor] = {
     "OUT": execute_out,
     "ADD": execute_add,
     "SUB": execute_sub,
+    "AND": execute_and,
+    "OR": execute_or,
+    "XOR": execute_xor,
     "INC": execute_inc,
     "DEC": execute_dec,
+    "LSL": execute_lsl,
+    "LSR": execute_lsr,
     "CMP": execute_cmp,
     "CMI": execute_cmi,
     "JMP": execute_jmp,

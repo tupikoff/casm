@@ -2,7 +2,7 @@
 
 import pytest
 from core import run_program, RunOptions
-from core.errors import StepLimitExceeded, InputUnderflow
+from core.errors import StepLimitExceeded, InputUnderflow, InvalidShiftAmount
 
 
 class TestInstructions:
@@ -80,6 +80,38 @@ class TestInstructions:
         assert result.status == "ok"
         assert result.final_state["acc"] == 6
 
+    def test_and_immediate(self):
+        """AND #n performs bitwise AND."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B00011001\nAND #B10000\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0b00010000
+
+    def test_or_immediate(self):
+        """OR #n performs bitwise OR."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B00010000\nOR #B11\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0b00010011
+
+    def test_xor_immediate(self):
+        """XOR #n performs bitwise XOR."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B10101010\nXOR #B11110000\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0b01011010
+
+    def test_and_memory_operand(self):
+        """AND a uses memory contents."""
+        opts = RunOptions(word_bits=8, initial_memory={90: int("00000100", 2)})
+        program = "LDM #B00000101\nAND 90\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0b00000100
+
     def test_inc_acc(self):
         """INC ACC increments ACC."""
         result = run_program("LDM #5\nINC ACC\nEND")
@@ -103,6 +135,37 @@ class TestInstructions:
         result = run_program("LDR #3\nDEC IX\nEND")
         assert result.status == "ok"
         assert result.final_state["ix"] == 2
+
+    def test_lsl_basic(self):
+        """LSL shifts ACC left logically."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B00011001\nLSL #4\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == -112
+        assert (result.final_state["acc"] & 0xFF) == 0b10010000
+
+    def test_lsr_basic(self):
+        """LSR shifts ACC right logically."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B10011000\nLSR #3\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0b00010011
+
+    def test_shift_amount_ge_word_bits_zeroes_acc(self):
+        """Shift amounts >= word_bits zero the ACC."""
+        opts = RunOptions(word_bits=8)
+        program = "LDM #B11111111\nLSR #8\nEND"
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.final_state["acc"] == 0
+
+    def test_negative_shift_amount_runtime_error(self):
+        """Negative shift amount raises runtime error."""
+        result = run_program("LDM #1\nLSL #-1\nEND")
+        assert result.status == "error"
+        assert result.error.type == "InvalidShiftAmount"
 
     def test_cmp_immediate_equal(self):
         """CMP #n sets flag True when equal."""
@@ -198,6 +261,16 @@ class TestIO:
         assert result.trace[1]["in_code"] == 88
         # OUT instruction
         assert result.trace[2]["out_code"] == 88
+
+    def test_trace_value_format_bin(self):
+        """Trace values can be formatted as binary strings."""
+        program = "81 INIT: 0\nLDM #B00001010\nSTO INIT\nEND"
+        opts = RunOptions(trace_watch=[81], trace_value_format="bin", word_bits=8)
+        result = run_program(program, options=opts)
+        assert result.status == "ok"
+        assert result.trace[0]["acc"] == "B00000000"
+        assert result.trace[-1]["acc"] == "B00001010"
+        assert result.trace[-1]["mem"]["81"] == "B00001010"
 
 
 class TestRunner:

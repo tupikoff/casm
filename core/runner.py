@@ -1,7 +1,7 @@
 """Program runner with tracing for Cambridge Assembly Emulator."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Callable
 from .cpu import CPU
 from .memory import Memory
 from .parser import parse_program, ParsedProgram, Instruction
@@ -27,6 +27,7 @@ class RunOptions:
     trace_include_ix: bool = False
     trace_include_flag: bool = False
     trace_include_io: bool = True
+    trace_value_format: str = "dec"
     initial_memory: dict[int, int] = field(default_factory=dict)
 
 
@@ -44,12 +45,24 @@ class TraceRow:
     instr_text: str = ""
     label: Optional[str] = None
 
-    def to_dict(self, include_ix: bool, include_flag: bool, include_io: bool) -> dict:
+    def to_dict(
+        self,
+        include_ix: bool,
+        include_flag: bool,
+        include_io: bool,
+        value_formatter: Optional[Callable[[int], object]] = None,
+    ) -> dict:
+        acc_value = value_formatter(self.acc) if value_formatter else self.acc
+        mem_values = (
+            {addr: value_formatter(val) for addr, val in self.mem.items()}
+            if value_formatter
+            else self.mem
+        )
         result = {
             "step": self.step,
             "addr": self.addr,
-            "acc": self.acc,
-            "mem": self.mem,
+            "acc": acc_value,
+            "mem": mem_values,
         }
         if include_ix:
             result["ix"] = self.ix
@@ -89,6 +102,24 @@ class RunResult:
         return result
 
 
+def _make_trace_value_formatter(
+    word_bits: int,
+    fmt: Optional[str],
+) -> Optional[Callable[[int], object]]:
+    """Return formatter for trace values based on requested format."""
+    fmt_normalized = (fmt or "dec").lower()
+    if fmt_normalized != "bin":
+        return None
+    width = max(1, word_bits)
+    mask = (1 << word_bits) - 1 if word_bits > 0 else 0
+
+    def formatter(value: int) -> str:
+        unsigned = value & mask
+        return f"B{unsigned:0{width}b}"
+
+    return formatter
+
+
 def run_program(
     program_text: str,
     input_text: str = "",
@@ -110,6 +141,10 @@ def run_program(
     trace_rows: list[dict] = []
     error_info: Optional[ErrorInfo] = None
     steps_executed = 0
+    value_formatter = _make_trace_value_formatter(
+        options.word_bits,
+        options.trace_value_format,
+    )
     
     # Initialize CPU
     cpu = CPU(word_bits=options.word_bits, signed=options.signed)
@@ -184,6 +219,7 @@ def run_program(
             include_ix=options.trace_include_ix,
             include_flag=options.trace_include_flag,
             include_io=options.trace_include_io,
+            value_formatter=value_formatter,
         ))
 
     current_instr: Optional[Instruction] = None
@@ -236,6 +272,7 @@ def run_program(
                     include_ix=options.trace_include_ix,
                     include_flag=options.trace_include_flag,
                     include_io=options.trace_include_io,
+                    value_formatter=value_formatter,
                 ))
         
         # Check step limit

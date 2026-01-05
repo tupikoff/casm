@@ -3,24 +3,68 @@
 import re
 from dataclasses import dataclass
 from typing import Optional
-from .errors import ParseError, UnknownOpcode, InvalidOperand, AddressConflict
+from .errors import (
+    ParseError,
+    UnknownOpcode,
+    InvalidOperand,
+    AddressConflict,
+    InvalidBinaryLiteral,
+    OperandTypeError,
+    InvalidShiftAmount,
+)
 
 
 # Valid opcodes
 VALID_OPCODES = {
-    "LDM", "LDD", "LDI", "LDX", "LDR", "MOV", "STO", "END",
-    "IN", "OUT",
-    "ADD", "SUB", "INC", "DEC",
-    "CMP", "CMI",
-    "JMP", "JPE", "JPN",
+    "LDM",
+    "LDD",
+    "LDI",
+    "LDX",
+    "LDR",
+    "MOV",
+    "STO",
+    "END",
+    "IN",
+    "OUT",
+    "ADD",
+    "SUB",
+    "INC",
+    "DEC",
+    "CMP",
+    "CMI",
+    "JMP",
+    "JPE",
+    "JPN",
+    "LSL",
+    "LSR",
+    "AND",
+    "OR",
+    "XOR",
 }
+
+SHIFT_OPCODES = {"LSL", "LSR"}
+BITWISE_OPCODES = {"AND", "OR", "XOR"}
 
 # Opcodes that require operand
 OPCODES_WITH_OPERAND = {
-    "LDM", "LDD", "LDI", "LDX", "LDR", "STO",
-    "ADD", "SUB",
-    "CMP", "CMI",
-    "JMP", "JPE", "JPN",
+    "LDM",
+    "LDD",
+    "LDI",
+    "LDX",
+    "LDR",
+    "STO",
+    "ADD",
+    "SUB",
+    "CMP",
+    "CMI",
+    "JMP",
+    "JPE",
+    "JPN",
+    "LSL",
+    "LSR",
+    "AND",
+    "OR",
+    "XOR",
 }
 
 # Opcodes with optional/register operand
@@ -28,6 +72,9 @@ OPCODES_WITH_REGISTER_OPERAND = {"INC", "DEC", "LDR", "MOV"}
 
 # Opcodes with no operand
 OPCODES_NO_OPERAND = {"IN", "OUT", "END"}
+
+_DECIMAL_LITERAL_RE = re.compile(r"^\d+$")
+_BINARY_LITERAL_RE = re.compile(r"^[01]+$")
 
 
 @dataclass
@@ -142,15 +189,11 @@ def parse_program(
                 current_addr = addr + 1
             continue
 
-        try:
-            # If it's just a number (allowing negative numbers)
-            if re.match(r"^-?\d+$", instruction_text):
-                initial_memory[addr] = int(instruction_text)
-                # Update current_addr so next sequential lines follow this address
-                current_addr = addr + 1
-                continue
-        except ValueError:
-            pass
+        data_value = _try_parse_numeric_literal(instruction_text, line_no, original_text)
+        if data_value is not None:
+            initial_memory[addr] = data_value
+            current_addr = addr + 1
+            continue
         
         # Parse instruction
         instruction = _parse_instruction(
@@ -250,9 +293,18 @@ def _parse_instruction(
         # Immediate value: #n
         if operand_str.startswith("#"):
             operand_type = "immediate"
+            literal_text = operand_str[1:]
             try:
-                operand_value = int(operand_str[1:])
+                operand_value = _parse_numeric_literal(literal_text, line_no, original_text)
+            except InvalidBinaryLiteral:
+                raise
             except ValueError:
+                if opcode in SHIFT_OPCODES:
+                    raise InvalidShiftAmount(
+                        f"{opcode} requires a numeric immediate shift amount",
+                        source_line_no=line_no,
+                        source_text=original_text,
+                    )
                 raise InvalidOperand(
                     f"Invalid immediate value: {operand_str}",
                     source_line_no=line_no,
@@ -269,12 +321,18 @@ def _parse_instruction(
             operand_type = "direct"
             # Try to parse as number
             try:
-                operand_value = int(operand_str)
+                operand_value = _parse_numeric_literal(
+                    operand_str,
+                    line_no,
+                    original_text,
+                    allow_binary=False,
+                )
+            except InvalidBinaryLiteral:
+                raise
             except ValueError:
-                # Might be a label, will resolve later
                 if operand_str_upper in labels:
                     operand_value = labels[operand_str_upper]
-                # else: leave as None, will be resolved in third pass
+                # else: leave as None, will be resolved later
     
     # Validate operand requirements
     if opcode in OPCODES_NO_OPERAND and operand_str:
@@ -299,6 +357,20 @@ def _parse_instruction(
             pass  # Valid: LDR ACC
         elif opcode in ("ADD", "SUB", "CMP") and operand_type in ("immediate", "direct"):
             pass  # Valid: ADD #n, ADD a, SUB #n, SUB a, CMP #n, CMP a
+        elif opcode in BITWISE_OPCODES:
+            if operand_type not in ("immediate", "direct"):
+                raise OperandTypeError(
+                    f"{opcode} requires an immediate or direct operand",
+                    source_line_no=line_no,
+                    source_text=original_text,
+                )
+        elif opcode in SHIFT_OPCODES:
+            if operand_type != "immediate":
+                raise OperandTypeError(
+                    f"{opcode} requires an immediate shift amount",
+                    source_line_no=line_no,
+                    source_text=original_text,
+                )
         elif opcode in ("LDD", "LDI", "LDX", "STO", "CMI", "JMP", "JPE", "JPN"):
             if operand_type != "direct":
                 raise InvalidOperand(
@@ -332,3 +404,56 @@ def _parse_instruction(
         source_text=original_text,
         clean_text=clean_text,
     )
+
+
+def _try_parse_numeric_literal(
+    text: str,
+    line_no: int,
+    source_text: str,
+    *,
+    allow_binary: bool = True,
+) -> Optional[int]:
+    """Attempt to parse numeric literal, returning None if not numeric."""
+    try:
+        return _parse_numeric_literal(text, line_no, source_text, allow_binary=allow_binary)
+    except InvalidBinaryLiteral:
+        raise
+    except ValueError:
+        return None
+
+
+def _parse_numeric_literal(
+    text: str,
+    line_no: int,
+    source_text: str,
+    *,
+    allow_binary: bool = True,
+) -> int:
+    """Parse decimal or binary literal, raising for invalid forms."""
+    literal = text.strip()
+    if not literal:
+        raise ValueError("Empty literal")
+
+    sign = 1
+    if literal[0] in "+-":
+        if literal[0] == "-":
+            sign = -1
+        literal = literal[1:]
+    if not literal:
+        raise ValueError("Empty literal")
+
+    if allow_binary and literal[0] in "Bb":
+        bits = literal[1:]
+        if not bits or not _BINARY_LITERAL_RE.fullmatch(bits):
+            raise InvalidBinaryLiteral(
+                f"Invalid binary literal: {text}",
+                source_line_no=line_no,
+                source_text=source_text,
+            )
+        value = int(bits, 2)
+    else:
+        if not _DECIMAL_LITERAL_RE.fullmatch(literal):
+            raise ValueError("Invalid decimal literal")
+        value = int(literal, 10)
+
+    return sign * value

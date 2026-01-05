@@ -2,7 +2,15 @@
 
 import pytest
 from core.parser import parse_program, Instruction
-from core.errors import ParseError, UnknownOpcode, InvalidOperand, AddressConflict
+from core.errors import (
+    ParseError,
+    UnknownOpcode,
+    InvalidOperand,
+    AddressConflict,
+    InvalidBinaryLiteral,
+    OperandTypeError,
+    InvalidShiftAmount,
+)
 
 
 class TestParser:
@@ -128,3 +136,36 @@ class TestParser:
         """END, IN, OUT take no operand."""
         result = parse_program("IN\nOUT\nEND")
         assert len(result.instructions) == 3
+
+    def test_binary_literal_parsing(self):
+        """Binary literals work in data and immediates."""
+        program = parse_program("81 VALUE: B00001010\nLDM #B100\nEND")
+        assert program.initial_memory[81] == 10
+        first_addr = min(program.instructions.keys())
+        instr = program.instructions[first_addr]
+        assert instr.operand_value == 4
+
+    @pytest.mark.parametrize("literal", ["B", "B2", "#B", "#BB01"])
+    def test_invalid_binary_literals(self, literal):
+        """Invalid binary literal forms raise error."""
+        if literal.startswith("#"):
+            source = f"LDM {literal}\nEND"
+        else:
+            source = f"{literal}\nEND"
+        with pytest.raises(InvalidBinaryLiteral):
+            parse_program(source)
+
+    def test_lsl_requires_immediate_operand(self):
+        """LSL operand must be immediate."""
+        with pytest.raises(OperandTypeError):
+            parse_program("LSL 4\nEND")
+
+    def test_and_rejects_register_operand(self):
+        """AND only allows immediate or direct addresses."""
+        with pytest.raises(OperandTypeError):
+            parse_program("AND ACC\nEND")
+
+    def test_invalid_shift_amount_literal(self):
+        """Shift amount must be numeric."""
+        with pytest.raises(InvalidShiftAmount):
+            parse_program("LSR #foo\nEND")

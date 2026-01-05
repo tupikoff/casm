@@ -4,11 +4,13 @@ Web-based emulator for Cambridge A-Level Computer Science assembly language with
 
 ## Features
 
-- 19 assembly instructions (LDM, LDD, LDI, LDX, ADD, SUB, CMP, JMP, JPE, JPN, etc.)
+- Full Cambridge AS/A-Level instruction set (data movement, arithmetic, bitwise, shifts, jumps, I/O)
 - Trace table generation (exam-style)
 - Configurable memory and word size
+- Decimal and binary literals (`10`, `-3`, `B00001010`, `#B100`)
 - Input/Output support
 - Labels and comments
+- Optional binary trace output for ACC & watched memory (`trace_value_format="bin"`)
 
 ## Supported Instructions
 
@@ -27,9 +29,14 @@ Web-based emulator for Cambridge A-Level Computer Science assembly language with
 - `INC ACC|IX` — increment ACC (default) or IX.
 - `DEC ACC|IX` — decrement ACC (default) or IX.
 
-### Logic / Comparison
+### Logic / Comparison / Bitwise
 - `CMP #n|a` — compare ACC against an immediate or memory value and set the compare flag.
 - `CMI a` — compare ACC with the value loaded indirectly via address `a` and set the flag.
+- `AND #n|a` — bitwise AND ACC with an immediate or memory operand.
+- `OR #n|a` — bitwise OR ACC with an immediate or memory operand.
+- `XOR #n|a` — bitwise XOR ACC with an immediate or memory operand.
+- `LSL #n` — logical shift left ACC by `n` bits (zero fill).
+- `LSR #n` — logical shift right ACC by `n` bits (zero fill).
 
 ### I/O
 - `IN` — read the next input character (ASCII) into ACC.
@@ -44,8 +51,10 @@ Web-based emulator for Cambridge A-Level Computer Science assembly language with
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (either explicit packages or requirements file)
 pip install fastapi uvicorn
+# or
+pip install -r requirements.txt
 
 # Run server
 python -m uvicorn web.app:app --host 0.0.0.0 --port 8080
@@ -65,6 +74,7 @@ POST `/api/run` - Execute assembly program
   "options": {
     "trace": true,
     "trace_watch": [80, 81],
+    "trace_value_format": "bin",
     "initial_memory": {"80": 10}
   }
 }

@@ -97,3 +97,18 @@ class InvalidOperand(ParseError):
 class AddressConflict(ParseError):
     """Conflicting address definitions."""
     pass
+
+
+class OperandTypeError(ParseError):
+    """Operand type is not allowed for the instruction."""
+    pass
+
+
+class InvalidBinaryLiteral(ParseError):
+    """Binary literal has invalid form."""
+    pass
+
+
+class InvalidShiftAmount(ParseError, CASMRuntimeError):
+    """Shift amount operand is invalid."""
+    pass
